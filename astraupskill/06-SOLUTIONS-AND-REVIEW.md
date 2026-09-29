@@ -1,0 +1,12 @@
+# Separate solutions and review rubric
+
+Level one returns `a,b-replaced`; order is preserved. Level two throws before a writer runs. Level three explains that delete retries are harmless intent while update absence signals a stale identity. Level four should show a user-facing save error and retain the loaded data. Level five should inject a writer spy, call the real context callback or helper boundary, and assert zero calls after rejection. A copied `filter` or `map` in the test would not prove production wiring.
+
+Review six points: every update callback uses the same helper; valid replacement preserves order; missing identity throws a stable message; persistence is reached only after identity success; add/delete behavior remains unchanged; tests load actual source. Add a seventh question: does the documentation claim anything about AsyncStorage durability that was not executed? It should not.
+
+The baseline is [snapshots/src/context/AppDataContext.tsx](snapshots/src/context/AppDataContext.tsx), the changed helper is [src/utils/collection.ts](../src/utils/collection.ts), and the focused test is [collection-runtime.test.mjs](../tests/collection-runtime.test.mjs). Reject a patch that silently inserts a missing update, converts update to add, or catches the error and reports success. Ask separately whether form error handling should be improved; that is a follow-up UI task.
+
+The tradeoff is explicit failure for update and idempotent absence for delete. This is appropriate for a local record editor because stale edits should be visible to the caller. It is not a substitute for server-side conflict detection in a multi-device deployment.
+A reviewer should also confirm that the helper does not mutate the input array, generate a replacement id, or silently append an absent record. Those are distinct CRUD operations. The focused patch should remain easy to revert if a screen needs a different error presentation.
+
+For the stale-screen prediction, distinguish the current array from a captured old array. If the callback receives a collection without A, the guard rejects. If its closure still contains A, the guard accepts; preventing resurrection requires a separate persistence/version policy. For duplicate ids, replace all matching positions to retain the baseline contract. An empty array rejects, and extra replacement fields remain intact because the helper returns the supplied object.

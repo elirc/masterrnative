@@ -1,0 +1,10 @@
+# Concepts: identity and persistence boundaries
+
+CRUD update correctness depends on identity. The replacement object is not enough; the collection must contain a record with the same id. A `map` expression answers “what would the array look like if this id were present?” It does not answer “did the requested resource exist?” That difference matters when a stale screen, duplicated submission, or wrong navigation parameter reaches the context.
+
+The helper turns that implicit assumption into an explicit boundary. It returns a new array for a match and throws for absence. The caller therefore cannot call `savePigBatches` or another storage writer after a false update. This is a local optimistic-state rule, not a database transaction. AsyncStorage writes still replace a whole collection, and concurrent screens can require a separate versioning policy.
+
+Add and delete have different semantics. Add creates a new identity and prepends it. Delete filters and can remain idempotent because deleting an already absent id is often safe for a UI retry. Update is different: silently accepting absence can overwrite no data while reporting success. The course keeps this tradeoff visible rather than making all operations throw.
+
+The context provides no server authorization or tenant boundary; this helper is an identity check, not an access-control mechanism. Data validation remains in [validation.ts](../src/utils/validation.ts), while identity validation belongs in [collection.ts](../src/utils/collection.ts). The runtime test proves the actual helper bytes and its error boundary, but not React scheduling or storage durability. Those limits are stated in [VERIFICATION.md](VERIFICATION.md).
+A junior developer may call this defensive programming, but the deeper concept is a resource existence invariant. A successful helper call implies at least one matching id existed in the supplied array. It does not establish that ids are unique. The helper makes that implication executable and lets reviewers distinguish identity errors from persistence errors.

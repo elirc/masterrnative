@@ -1,0 +1,10 @@
+# Codebase map: local CRUD state
+
+The entry point is [AppDataContext.tsx](../src/context/AppDataContext.tsx). It owns six arrays: pig batches, feed purchases, feed usage, expenses, sales, and mortality records. Each collection exposes add, update, and delete callbacks. Add prepends a record, update replaces by id, and delete filters by id. The callback writes the complete next collection through a storage function and then updates React state. `refreshData`, import, export, and clear operate through the same storage service boundary.
+
+The persistence edge is under `src/services/storageService.ts`; validation and backup parsing are in [validation.ts](../src/utils/validation.ts). Records carry stable ids and metadata, so an update should address one existing record. The new [collection helper](../src/utils/collection.ts) is deliberately independent of React and storage. It finds the index, throws a clear error when absent, and returns a new array with every matching id replaced. This keeps data mutation policy testable without mounting Expo components.
+
+Trace an update: form → context callback → `replaceRecordById` → storage writer → state setter. Existing id follows all five steps. Missing id stops at the helper, so storage and state setters are not reached. Before the change, missing id skipped replacement but continued to storage with the old array, creating a false success. The exact baseline is [snapshots/src/context/AppDataContext.tsx](snapshots/src/context/AppDataContext.tsx).
+
+No AGENTS instructions were present in the staged project. Native Expo rendering, AsyncStorage, and form navigation remain outside this bounded check. A reviewer should verify each six update callback uses the helper and that deletes still remain intentionally idempotent.
+The map is intentionally collection-oriented rather than screen-oriented. Batch forms, transaction screens, and settings screens all reuse the same context shape. A single helper therefore prevents six copies of a stale-id bug while leaving each storage writer responsible for its own collection serialization.
