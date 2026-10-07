@@ -1,10 +1,23 @@
 # Masterrnative CRUD upskill
 
-This staged change fixes a quiet update failure in the pig-farm data context. Each `update*` callback previously used `map`, so an id that did not exist produced an unchanged array and still called the storage writer. A form could therefore report success while saving nothing. The new [replaceRecordById helper](../src/utils/collection.ts) makes the missing-record boundary explicit and is used by every update path in [AppDataContext.tsx](../src/context/AppDataContext.tsx). The original context is preserved in [the snapshot](snapshots/src/context/AppDataContext.tsx).
+Masterrnative is an Expo 54 / React Native 0.81 pig-farm record keeper (batches, feed, expenses, sales, mortality) that stores everything on-device in AsyncStorage. This course follows one staged change: each `update*` callback in the data context previously used `map`, so an id that did not exist produced an unchanged array and still called the storage writer — a form could report success while saving nothing. The [replaceRecordById helper](../src/utils/collection.ts) makes the missing-record boundary explicit and is used by all six update paths in [AppDataContext.tsx](../src/context/AppDataContext.tsx). The original context is preserved in [the snapshot](snapshots/src/context/AppDataContext.tsx).
 
-The course traces CRUD state, storage writes, and error boundaries without changing add or delete semantics. [01-CODEBASE-MAP.md](01-CODEBASE-MAP.md) maps the context to storage and validation. [03-WORKED-CHANGE.md](03-WORKED-CHANGE.md) gives the before and after code. [05-PRACTICE.md](05-PRACTICE.md) asks you to predict missing-id behavior before reading [06-SOLUTIONS-AND-REVIEW.md](06-SOLUTIONS-AND-REVIEW.md). The executable test loads the actual TypeScript helper through Node’s type stripping at [collection-runtime.test.mjs](../tests/collection-runtime.test.mjs).
+## Reading order
 
-The fix is intentionally narrow. It does not add a database, change AsyncStorage formats, or claim React rendering coverage. A missing update now fails before persistence, while a valid replacement preserves array order and writes exactly as before. The verification record documents the three focused runtime cases and the existing project test limitation: package dependencies and the TypeScript compiler are absent in this staged environment.
-The practical design lesson is to validate identity before performing an asynchronous side effect. This ordering produces a smaller trace, makes tests deterministic, and gives future screens a reliable error boundary. It also keeps the helper generic across typed records without weakening the domain schemas or changing ids.
+1. [01-CODEBASE-MAP.md](01-CODEBASE-MAP.md) — context → storage → helper, with a file-by-file reading table.
+2. [02-CONCEPTS.md](02-CONCEPTS.md) — existence vs uniqueness vs currency of an id.
+3. [03-WORKED-CHANGE.md](03-WORKED-CHANGE.md) — before/after code and why `findIndex` + `map`.
+4. [04-TESTING-AND-DEBUGGING.md](04-TESTING-AND-DEBUGGING.md) — the two test suites and how to run each.
+5. [05-PRACTICE.md](05-PRACTICE.md) — nine Goal + Check exercises (five runnable without install). Predict before reading [06-SOLUTIONS-AND-REVIEW.md](06-SOLUTIONS-AND-REVIEW.md), which also holds four verified review findings.
+6. [07-TRACE-LAB.md](07-TRACE-LAB.md) — the same trace across all six collections.
+7. [VERIFICATION.md](VERIFICATION.md) — exactly what was executed and what was only read.
 
-The contract is deliberately bounded: a known id yields replacement of all matching ids in a fresh array, while an unknown id raises before persistence can be called. This makes a failed CRUD request visible at the selection boundary without pretending to solve transactions, conflict merging, or offline synchronization. The evidence supports helper identity validation and its six context call sites; Expo and AsyncStorage remain explicit follow-up checks.
+## Quick check
+
+```text
+node --experimental-strip-types --test tests/collection-runtime.test.mjs
+```
+
+Needs Node 22.6+ and no install; prints `# pass 3`. The full project suite (`pnpm install`, then `pnpm test`, 34 tests across six `.test.ts` files) needs the TypeScript compiler from devDependencies and was not run for this course.
+
+The fix is intentionally narrow. It does not add a database, change AsyncStorage formats, or claim React rendering coverage. A missing update now fails before persistence; a valid replacement preserves array order and writes exactly as before. It does not solve transactions, conflict merging, or stale closures — those are named as findings in 06 rather than claimed as fixed.
